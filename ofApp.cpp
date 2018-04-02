@@ -72,8 +72,8 @@ void ofApp::setup(){
 	
 	video.setLoopState(OF_LOOP_NORMAL); // OF_LOOP_NONE
 	video.setSpeed(1);
-	// video.setVolume(1.0);
-	video.setVolume(0.0);
+	video.setVolume(1.0);
+	// video.setVolume(0.0);
 	video.play();
 	
 	/*
@@ -137,6 +137,19 @@ void ofApp::draw(){
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
 	switch(key){
+		case '0':
+		case '1':
+		case '2':
+		case '3':
+		case '4':
+		case '5':
+		case '6':
+		case '7':
+		case '8':
+		case '9':
+			Effect->set_drawId(key - '0');
+			break;
+		
 		case ' ':
 			b_KeySimulation_DetectClap = true;
 			break;
@@ -161,7 +174,11 @@ void ofApp::keyPressed(int key){
 			break;
 		
 		case 'k':
-			video.setPosition(0.1);
+			video.setPosition(0.2);
+			break;
+			
+		case 't':
+			Effect->change_MixCombination();
 			break;
 	}
 }

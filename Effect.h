@@ -131,9 +131,9 @@ public:
 			float theta = ofRandom(0, 2*PI);
 			offset[i].Dir_Vector.set(cos(theta), sin(theta));
 			
-			offset[i].Amp = ofRandom(0.003, 0.02);
+			offset[i].Amp = ofRandom(0.07, 0.1);
 			offset[i].phase = ofRandom(0, 10);
-			offset[i].T = ofRandom(5, 15); // ゆっくり
+			offset[i].T = ofRandom(14, 18); // ゆっくり
 		}
 		
 		// int FixId = (int)( ((double)rand() / ((double)RAND_MAX + 1)) * (NUM_RGB) );
@@ -189,16 +189,35 @@ private:
 		NUM_EFFECT_NAMES,
 	};
 	
+	enum MIX_COMBINATION{
+		MIX__ORG_xN__EFFECT_xN,
+		MIX__ORG_x1__EFFECT_x1,
+		MIX__ORG_xN__EFFECT_x1,
+		MIX__ORG_x1__EFFECT_xN,
+		
+		NUM_MIX_COMBINATION,
+	};
+	
 	enum{
 		TRUCHET_DESIGN_ID__MAX = 255,
 		
 		TRUCHET_ZOOM_MAX = 100,
 		TRUCHET_ZOOM_THRESH_FROM = 11,
-		TRUCHET_ZOOM_THRESH_TO = 18,
+		TRUCHET_ZOOM_THRESH_TO = 16,
 		
 		TRUCHET_ZOOM_FALLTO = 2,
 		
 		NUM_TRUCHET_ID = 4,
+	};
+	
+	enum DRAW_ID{
+		DRAW_ID__IMG0,
+		DRAW_ID__IMG1,
+		DRAW_ID__IMG_MASK,
+		DRAW_ID__ORG,
+		DRAW_ID__MIX,
+		
+		NUM_DRAW_ID,
 	};
 
 	/****************************************
@@ -214,6 +233,7 @@ private:
 	int truchet2x2_DesignId;
 	int IdOffset_PerClap;
 	EFFECT_NAME EffectName;
+	MIX_COMBINATION MixCombination;
 	
 	const float d_Transition_Trunchet;
 	const float d_Transition_Trunchet_Fall;
@@ -226,11 +246,13 @@ private:
 	/********************
 	********************/
 	ofFbo fbo_mask;
+	ofFbo fbo_img_org;
 	ofFbo fbo_img0;
 	ofFbo fbo_img1;
 	
 	/********************
 	********************/
+	ofShader shader_Copy;
 	ofShader shader_Gray;
 	ofShader shader_Gray_Inv;
 	ofShader shader_mix;
@@ -249,6 +271,8 @@ private:
 	/********************
 	********************/
 	ofTrueTypeFont font;
+	
+	DRAW_ID draw_id;
 	
 	
 	/****************************************
@@ -271,6 +295,7 @@ private:
 	void set_TruchetAngle(float now, float f_Transition = -1);
 	void Reset_TruchetAngle();
 	
+	void DrawTool__fbo_to_fbo__CopyShader(ofFbo& fbo_from, ofFbo& fbo_to);
 	void DrawTool__fbo_to_fbo(ofFbo& fbo_from, ofFbo& fbo_to);
 	void DrawTool__truchetTile(ofFbo& fbo);
 	void DrawTool__Video_to_fbo(ofxHapPlayer& video, ofFbo& fbo);
@@ -287,6 +312,9 @@ public:
 		static EFFECT inst;
 		return &inst;
 	}
+	
+	void set_drawId(int id);
+	void change_MixCombination();
 	
 	void exit();
 	void setup();

@@ -17,16 +17,16 @@ int EFFECT::W_EffectName[NUM_EFFECT_NAMES] = {
 	0, // EFFECT__DIAG_GRAY,
 	1, // EFFECT__DIAG_GRAYINV,
 	1, // EFFECT__DIAG_RGBOFS,
-
+	
 /*
 	0, // EFFECT__LR_NORMAL,
 	0, // EFFECT__LR_GRAY,
 	0, // EFFECT__LR_GRAYINV,
-	1, // EFFECT__LR_RGBOFS,
+	0, // EFFECT__LR_RGBOFS,
 	0, // EFFECT__UPDOWN_NORMAL,
 	0, // EFFECT__UPDOWN_GRAY,
 	0, // EFFECT__UPDOWN_GRAYINV,
-	1, // EFFECT__UPDOWN_RGBOFS,
+	0, // EFFECT__UPDOWN_RGBOFS,
 	0, // EFFECT__DIAG_NORMAL,
 	0, // EFFECT__DIAG_GRAY,
 	0, // EFFECT__DIAG_GRAYINV,
@@ -44,8 +44,9 @@ EFFECT::EFFECT()
 : truchet2x2_DesignId(0)
 , IdOffset_PerClap(1)
 , EffectName(EFFECT__LR_NORMAL)
+, MixCombination(MIX__ORG_xN__EFFECT_xN)
 // , d_Transition_Trunchet(0.5)
-, d_Transition_Trunchet(0.3)
+, d_Transition_Trunchet(0.4)
 , d_Transition_Trunchet_Fall(0.8)
 , Truchet_Zoom(d_Transition_Trunchet)
 , Truchet_Offset_x(d_Transition_Trunchet)
@@ -54,6 +55,7 @@ EFFECT::EFFECT()
 , State(STATE__WAIT_CLAP)
 , Zoom_thresh(TRUCHET_ZOOM_THRESH_TO)
 , Osc_Strobe("127.0.0.1", 12351, 12352)
+, draw_id(DRAW_ID__MIX)
 {
 	/********************
 	配列をplacement newを使って初期化する
@@ -64,6 +66,7 @@ EFFECT::EFFECT()
 	
 	/********************
 	********************/
+	shader_Copy.load( "copy.vert", "copy.frag");
 	shader_Gray.load( "Gray.vert", "Gray.frag");
 	shader_Gray_Inv.load( "Gray_Inv.vert", "Gray_Inv.frag");
 	shader_mix.load( "mix.vert", "mix.frag");
@@ -73,6 +76,7 @@ EFFECT::EFFECT()
 	/********************
 	********************/
 	fbo_mask.allocate(W_CONTENTS, H_CONTENTS, GL_RGBA);
+	fbo_img_org.allocate(W_CONTENTS, H_CONTENTS, GL_RGBA);
 	fbo_img0.allocate(W_CONTENTS, H_CONTENTS, GL_RGBA);
 	fbo_img1.allocate(W_CONTENTS, H_CONTENTS, GL_RGBA);
 	
@@ -279,6 +283,49 @@ bool EFFECT::IsSpill()
 
 /******************************
 ******************************/
+void EFFECT::set_drawId(int id)
+{
+#ifndef SJ_RELEASE
+	if(id < NUM_DRAW_ID) draw_id = DRAW_ID(id);
+#endif
+}
+
+/******************************
+******************************/
+void EFFECT::change_MixCombination()
+{
+#ifndef SJ_RELEASE
+	/********************
+	********************/
+	MixCombination = MIX_COMBINATION(MixCombination + 1);
+	if(NUM_MIX_COMBINATION <= MixCombination) MixCombination = MIX__ORG_xN__EFFECT_xN;
+	
+	/********************
+	********************/
+	switch(MixCombination){
+		case MIX__ORG_xN__EFFECT_xN:
+			printf("> Org:xN Effect:xN\n");
+			break;
+			
+		case MIX__ORG_x1__EFFECT_x1:
+			printf("> Org:x1 Effect:x1\n");
+			break;
+			
+		case MIX__ORG_xN__EFFECT_x1:
+			printf("> Org:xN Effect:x1\n");
+			break;
+			
+		case MIX__ORG_x1__EFFECT_xN:
+			printf("> Org:x1 Effect:xN\n");
+			break;
+	}
+	fflush(stdout);
+	
+#endif
+}
+
+/******************************
+******************************/
 void EFFECT::draw(ofxHapPlayer& video, ofFbo& fbo_target)
 {
 	/********************
@@ -286,20 +333,38 @@ void EFFECT::draw(ofxHapPlayer& video, ofFbo& fbo_target)
 	if(Truchet_Zoom.get_to() == 0){
 		DrawTool__Video_to_fbo(video, fbo_target);
 	}else{
-	/*
-		DrawTool__Video_to_fbo(video, fbo_img0);
-		DrawTool__FboToFbo_MirrorAndColor_Effect(fbo_img0, fbo_img1, EffectName);
+		DrawTool__Video_to_fbo(video, fbo_img_org);
+		DrawTool__fbo_to_fbo__CopyShader(fbo_img_org, fbo_img0);
+		DrawTool__FboToFbo_MirrorAndColor_Effect(fbo_img_org, fbo_img1, EffectName);
 		DrawTool__truchetTile(fbo_mask);
 		
-		// DrawTool__fbo_mix(fbo_target);
-		DrawTool__fbo_to_fbo(fbo_img1, fbo_target);
-	*/
+#ifndef SJ_RELEASE
+		switch(draw_id){
+			case DRAW_ID__IMG0:
+				DrawTool__fbo_to_fbo(fbo_img0, fbo_target);
+				break;
+				
+			case DRAW_ID__IMG1:
+				DrawTool__fbo_to_fbo(fbo_img1, fbo_target);
+				break;
+				
+			case DRAW_ID__IMG_MASK:
+				DrawTool__fbo_to_fbo(fbo_mask, fbo_target);
+				break;
+				
+			case DRAW_ID__ORG:
+				DrawTool__fbo_to_fbo(fbo_img_org, fbo_target);
+				break;
+				
+			case DRAW_ID__MIX:
+				DrawTool__fbo_mix(fbo_target);
+				break;
+		}
 		
-		DrawTool__Video_to_fbo(video, fbo_img0);
-		DrawTool__FboToFbo_MirrorAndColor_Effect(fbo_img0, fbo_img1, EffectName);
-		DrawTool__truchetTile(fbo_mask);
-		
+#else
 		DrawTool__fbo_mix(fbo_target);
+#endif
+
 	}
 	
 	/********************
@@ -359,12 +424,47 @@ void EFFECT::DrawTool__truchetTile(ofFbo& fbo)
 void EFFECT::DrawTool__Video_to_fbo(ofxHapPlayer& video, ofFbo& fbo)
 {
 	fbo.begin();
-	
-	ofClear(0, 0, 0, 0);
-	ofSetColor(255, 255, 255, 255);
-	video.draw(0, 0, fbo.getWidth(), fbo.getHeight());
-	
+		/********************
+		********************/
+		ofClear(0, 0, 0, 0);
+		ofSetColor(255, 255, 255, 255);
+		video.draw(0, 0, fbo.getWidth(), fbo.getHeight());
+		
 	fbo.end();
+}
+
+/******************************
+description
+	Copy shaderを使った fbo -> fbo.
+	shaderを使わない場合との相違は、
+	offset, tiling 機能がある点.
+******************************/
+void EFFECT::DrawTool__fbo_to_fbo__CopyShader(ofFbo& fbo_from, ofFbo& fbo_to)
+{
+	fbo_to.begin();
+	shader_Copy.begin();
+		/********************
+		********************/
+		shader_Copy.setUniform2f( "u_resolution", fbo_from.getWidth(), fbo_from.getHeight() );
+		
+		if( (MixCombination == MIX__ORG_xN__EFFECT_xN) || (MixCombination == MIX__ORG_xN__EFFECT_x1) ){
+			shader_Copy.setUniform2f( "CoordOffset", Truchet_Offset_x.get_current(), Truchet_Offset_y.get_current() );
+			shader_Copy.setUniform1f( "Zoom", Truchet_Zoom.get_current() );
+		}else{
+			shader_Copy.setUniform2f( "CoordOffset", 0, 0 );
+			shader_Copy.setUniform1f( "Zoom", 1 );
+		}
+		
+		shader_Copy.setUniform1i("mirror", 0);
+		
+		/********************
+		********************/
+		ofClear(0, 0, 0, 0);
+		ofSetColor(255, 255, 255, 255);
+		fbo_from.draw(0, 0, fbo_to.getWidth(), fbo_to.getHeight());
+		
+	shader_Copy.end();
+	fbo_to.end();
 }
 
 /******************************
@@ -375,7 +475,7 @@ void EFFECT::DrawTool__fbo_to_fbo(ofFbo& fbo_from, ofFbo& fbo_to)
 	
 	ofClear(0, 0, 0, 0);
 	ofSetColor(255, 255, 255, 255);
-	fbo_from.draw(0, 0, fbo_from.getWidth(), fbo_from.getHeight());
+	fbo_from.draw(0, 0, fbo_to.getWidth(), fbo_to.getHeight());
 	
 	fbo_to.end();
 }
@@ -406,11 +506,12 @@ void EFFECT::DrawTool__FboToFbo_MirrorAndColor_Effect(ofFbo& fbo_from, ofFbo& fb
 	/********************
 	********************/
 	enum MIRRORTYPE{
+		MIRROR_NONE,
 		MIRROR_LR,
 		MIRROR_UPDOWN,
 		MIRROR_DIAG,
 	};
-	MIRRORTYPE MirrorType;
+	MIRRORTYPE MirrorType = MIRROR_NONE;
 	ofShader* shader;
 	
 	switch(EffectName){
@@ -482,8 +583,6 @@ void EFFECT::DrawTool__FboToFbo_MirrorAndColor_Effect(ofFbo& fbo_from, ofFbo& fb
 		shader->begin();
 		
 		if(shader == &shader_prism){
-			shader->setUniform2f( "u_resolution", fbo_from.getWidth(), fbo_from.getHeight() );
-			
 			ofVec2f dir = prism.get_ofs(0);
 			shader->setUniform2f("OfsDirVector_R", dir.x, dir.y);
 			
@@ -493,29 +592,23 @@ void EFFECT::DrawTool__FboToFbo_MirrorAndColor_Effect(ofFbo& fbo_from, ofFbo& fb
 			dir = prism.get_ofs(2);
 			shader->setUniform2f("OfsDirVector_B", dir.x, dir.y);
 		}
+		
+		shader->setUniform2f( "u_resolution", fbo_to.getWidth(), fbo_to.getHeight() );
+		if( (MixCombination == MIX__ORG_xN__EFFECT_xN) || (MixCombination == MIX__ORG_x1__EFFECT_xN) ){
+			shader->setUniform2f( "CoordOffset", Truchet_Offset_x.get_current(), Truchet_Offset_y.get_current() );
+			shader->setUniform1f( "Zoom", Truchet_Zoom.get_current() );
+		}else{
+			shader->setUniform2f( "CoordOffset", 0, 0 );
+			shader->setUniform1f( "Zoom", 1.0 );
+		}
+		
+		shader->setUniform1i("mirror", MirrorType);
 	}
 	
 	/********************
 	********************/
 	fbo_to.begin();
 	ofPushMatrix();
-		/********************
-		********************/
-		if(MirrorType == MIRROR_LR){
-			ofTranslate(fbo_from.getWidth(), 0);
-			ofScale(-1, 1, 1);
-		}else if(MirrorType == MIRROR_UPDOWN){
-			ofTranslate(0, fbo_from.getHeight());
-			ofScale(1, -1, 1);
-		}else if(MirrorType == MIRROR_DIAG){
-			ofTranslate(fbo_from.getWidth(), fbo_from.getHeight());
-			ofScale(-1, -1, 1);
-		}else{
-			// none.
-		}
-		
-		/********************
-		********************/
 		ofClear(0, 0, 0, 0);
 		ofSetColor(255, 255, 255, 255);
 		fbo_from.draw(0, 0);
