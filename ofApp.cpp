@@ -72,8 +72,8 @@ void ofApp::setup(){
 	
 	video.setLoopState(OF_LOOP_NORMAL); // OF_LOOP_NONE
 	video.setSpeed(1);
-	video.setVolume(1.0);
-	// video.setVolume(0.0);
+	// video.setVolume(1.0);
+	video.setVolume(0.0);
 	video.play();
 	
 	/*
